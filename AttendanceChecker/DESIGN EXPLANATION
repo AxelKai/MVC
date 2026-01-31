@@ -1,0 +1,97 @@
+1. Singleton Pattern
+Purpose in AttendanceChecker
+The Singleton Pattern ensures that only one database connection exists throughout the application.
+In AttendanceChecker:
+•	Multiple models may access the database
+•	Creating multiple connections is inefficient
+•	A single shared connection improves performance and consistency
+This pattern is applied in database.py.
+How It Works in the System
+•	get_db_connection() returns the same database connection
+•	All Models use this shared instance
+•	Prevents duplicate database connections
+ Code (Singleton – database.py)
+import sqlite3
+
+_connection = None
+
+def get_db_connection():
+    global _connection
+    if _connection is None:
+        _connection = sqlite3.connect("attendance.db")
+        _connection.row_factory = sqlite3.Row
+    return _connection
+
+2️. Repository Pattern
+ Purpose in AttendanceChecker
+The Repository Pattern abstracts all database access logic and isolates it from business logic.
+In AttendanceChecker:
+•	Controllers and Services do NOT write SQL
+•	All database operations go through AttendanceModel
+•	Makes the system easier to maintain and test
+This pattern is implemented in attendanceModel.py.
+ How It Works in the System
+•	The Model acts as a repository
+•	Provides methods like:
+o	add_attendance()
+o	get_all_attendance()
+•	Hides SQL queries from the rest of the app
+
+ Code (Repository – attendanceModel.py)
+from config.database import get_db_connection
+
+class AttendanceModel:
+    def __init__(self):
+        self.conn = get_db_connection()
+
+    def add_attendance(self, student_name, status):
+        query = "INSERT INTO attendance (student_name, status) VALUES (?, ?)"
+        self.conn.execute(query, (student_name, status))
+        self.conn.commit()
+
+    def get_all_attendance(self):
+        query = "SELECT * FROM attendance"
+        return self.conn.execute(query).fetchall()
+
+ 3️. Strategy Pattern
+ Purpose in AttendanceChecker
+The Strategy Pattern allows the system to switch attendance rules dynamically without changing core logic.
+In AttendanceChecker:
+•	Different attendance rules may exist
+o	Normal class
+o	Strict attendance (e.g., exams)
+•	Each rule is a separate strategy
+•	The service uses any strategy interchangeably
+This pattern fits naturally in attendanceService.py.
+ How It Works in the System
+•	A strategy defines how attendance is validated
+•	The service accepts a strategy object
+•	You can change rules without modifying the service
+
+Code (Strategy Implementation)
+Strategy Interface
+class AttendanceStrategy:
+    def validate(self, status):
+        raise NotImplementedError
+Concrete Strategy
+class NormalAttendanceStrategy(AttendanceStrategy):
+    def validate(self, status):
+        return status in ["Present", "Absent"]
+Service Using Strategy
+class AttendanceService:
+    def __init__(self, model, strategy):
+        self.model = model
+        self.strategy = strategy
+
+    def record_attendance(self, student_name, status):
+        if not self.strategy.validate(status):
+            raise ValueError("Invalid attendance status")
+        self.model.add_attendance(student_name, status)
+
+
+Final Summary (Perfect for Reports)
+Pattern	Role in AttendanceChecker	File
+Singleton	Ensures one DB connection	database.py
+Repository	Encapsulates data access	attendanceModel.py
+Strategy	Flexible attendance rules	attendanceService.py
+
